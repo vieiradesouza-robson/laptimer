@@ -37,6 +37,7 @@ extern lv_obj_t * uic_accelTime;
 #endif
 
 void ui_accelNewTime(float timeSec);
+void ui_accelPhotogateStatus(int photogate_state, int photogate_state2);
 
 #endif
 

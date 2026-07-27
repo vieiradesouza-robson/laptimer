@@ -48,6 +48,7 @@ extern lv_obj_t * uic_skidTimeIdx4;
 extern lv_obj_t * uic_skidTimeIdx5;
 
 void ui_skidNewTime(float timeSec, uint16_t lapIdx);
+void ui_skidPhotogateStatus(int photogate_state);
 
 #ifdef __cplusplus
 } /*extern "C"*/

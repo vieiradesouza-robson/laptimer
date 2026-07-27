@@ -70,6 +70,14 @@ void ui_skidNewTime(float timeSec, uint16_t lapIdx)
     lv_label_set_text(*skidTimeLabels[lapIdx], buf);
 }
 
+void ui_skidPhotogateStatus(int photogate_state) {
+    if (photogate_state) {
+        lv_obj_add_state(ui_skidPhotoGateStatus, LV_STATE_CHECKED);     /// States
+    } else {
+        lv_obj_clear_state(ui_skidPhotoGateStatus, LV_STATE_CHECKED);     /// States
+    }
+}
+
 // build funtions
 
 void ui_skidScreen_screen_init(void)

@@ -50,6 +50,20 @@ void ui_accelNewTime(float timeSec)
     lv_label_set_text(ui_accelTime, buf);
 }
 
+void ui_accelPhotogateStatus(int photogate_state, int photogate_state2){
+    if (photogate_state) {
+        lv_obj_add_state(ui_accelPhotoGate1Status, LV_STATE_CHECKED);     /// States
+    } else {
+        lv_obj_clear_state(ui_accelPhotoGate1Status, LV_STATE_CHECKED);     /// States
+    }
+
+    if (photogate_state2) {
+        lv_obj_add_state(ui_accelPhotoGate2Status, LV_STATE_CHECKED);     /// States
+    } else {
+        lv_obj_clear_state(ui_accelPhotoGate2Status, LV_STATE_CHECKED);     /// States
+    }
+}
+
 // build funtions
 
 void ui_accelScreen_screen_init(void)

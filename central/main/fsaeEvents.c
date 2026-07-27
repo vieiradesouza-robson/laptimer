@@ -2,6 +2,7 @@
 
 static QueueHandle_t interrupt_queue = NULL;
 static TaskHandle_t skid_task_handle = NULL;
+static TaskHandle_t status_checkbox_task_handle = NULL;
 
 float skidTimes[4] = {0.0, 0.0, 0.0, 0.0};
 uint16_t skidCurrentIndex = 0;
@@ -9,6 +10,14 @@ uint16_t skidCurrentIndex = 0;
 uint64_t last_timestamp = 0;
 uint64_t curr_timestamp = 0;
 bool interrupt_enabled = false;
+typedef enum {
+    SKID_STATE_INIT, //the user has not chosen the car # and driver name, the event is not yet started and the photogate interruptions are disabled
+    SKID_STATE_IDLE, //car # and driver have been chosen, interruption is enabled and we are waiting for the first lap to start
+    SKID_STATE_ACTIVE, //the first lap has started, we are measuring the time between photogate interruptions
+    SKID_STATE_ENDED //the event has ended, the car has crossed the finish line and we are waiting for the reset button to be pressed to reset the event
+} skidState;
+
+skidState current_skid_state = SKID_STATE_INIT;
 
 void enableInterrupt(){
     if(!interrupt_enabled){
@@ -51,33 +60,58 @@ static void interrupt_task(void* arg) {
     while (1) {        
         newLap = xQueueReceive(interrupt_queue, &curr_timestamp, pdMS_TO_TICKS(50));
 
-        if (!newLap) {
-            curr_timestamp = esp_timer_get_time();
-        }
+        if (current_skid_state == SKID_STATE_ACTIVE) {
 
-        diff_us = curr_timestamp - last_timestamp;
-        diff_s = diff_us / 1000000.0f;
-        ui_skidNewTime(diff_s, skidCurrentIndex);
-        skidTimes[skidCurrentIndex] = diff_s;
+            if (!newLap) {
+                curr_timestamp = esp_timer_get_time();
+            }
 
-        last_timestamp = newLap ? curr_timestamp : last_timestamp;
-        skidCurrentIndex = newLap ? (skidCurrentIndex + 1) % 4 : skidCurrentIndex;
+            diff_us = curr_timestamp - last_timestamp;
+            diff_s = diff_us / 1000000.0f;
+            ui_skidNewTime(diff_s, skidCurrentIndex);
+            skidTimes[skidCurrentIndex] = diff_s;
 
-        if (skidCurrentIndex == 0 && newLap) {
-            // Calculate average of 2nd and 4th laps
-            float avg = (skidTimes[1] + skidTimes[3]) / 2.0f;
-            ui_skidNewTime(avg, 4);
-        }
+            last_timestamp = newLap ? curr_timestamp : last_timestamp;
+            skidCurrentIndex = newLap ? (skidCurrentIndex + 1) % 4 : skidCurrentIndex;
 
-        if (!interrupt_enabled && diff_us >= INPUT_TIME_MIN_INT_US) {
-            enableInterrupt();
+            if (skidCurrentIndex == 0 && newLap) {
+                // Calculate average of 2nd and 4th laps
+                float avg = (skidTimes[1] + skidTimes[3]) / 2.0f;
+                ui_skidNewTime(avg, 4);
+                current_skid_state = SKID_STATE_IDLE;
+            }
+
+            if (!interrupt_enabled && diff_us >= INPUT_TIME_MIN_INT_US) {
+                enableInterrupt();
+            }
+
+        } else if (current_skid_state == SKID_STATE_IDLE && newLap) {
+            current_skid_state = SKID_STATE_ACTIVE;
+            last_timestamp = curr_timestamp;
+            skidCurrentIndex = 0;
+            skidTimes[0] = 0.0f;
+            ui_skidNewTime(0.0f, 0);
         }
     }
 
     vTaskDelete(NULL);
 }
 
+void fsaeSkid_DNF(void) {
+
+}
+
+static void update_photogate_status_skid(void* arg){
+    while (1) {
+        // Update the photogate status checkbox based on the current photogate pin state
+        int photogate_state = gpio_get_level(INPUT1_GPIO);
+        ui_skidPhotogateStatus(photogate_state);
+        vTaskDelay(pdMS_TO_TICKS(200)); // Add a small delay to avoid busy waiting
+    }
+}
+
 void fsaeSkid_reset(void) {
+
     // Reset any internal state if necessary
     last_timestamp = 0;
     curr_timestamp = 0;
@@ -103,7 +137,7 @@ void fsaeSkid_init(void) {
     gpio_isr_handler_add(INPUT1_GPIO, gpio_isr_handler, NULL);
 
     xTaskCreate(interrupt_task, "interrupt_task", 2048, NULL, 10, &skid_task_handle);
-
+    xTaskCreate(update_photogate_status_skid, "update_photogate_status_skid", 2048, NULL, 10, &status_checkbox_task_handle);
     fsaeSkid_reset();
 }
 
@@ -114,6 +148,11 @@ void fsaeSkid_deinit(void) {
     if (skid_task_handle != NULL) {
         vTaskDelete(skid_task_handle);
         skid_task_handle = NULL;
+    }
+
+    if (status_checkbox_task_handle != NULL) {
+        vTaskDelete(status_checkbox_task_handle);
+        status_checkbox_task_handle = NULL;
     }
 
     if (interrupt_queue != NULL) {
@@ -131,6 +170,7 @@ typedef struct {
 
 static QueueHandle_t accel_queue = NULL;
 static TaskHandle_t accel_task_handle = NULL;
+static TaskHandle_t accel_status_checkbox_task_handle = NULL;
 
 static uint64_t accel_last_timestamp = 0;
 static uint64_t accel_input1_timestamp = 0;
@@ -233,6 +273,17 @@ static void accel_task(void* arg) {
     vTaskDelete(NULL);
 }
 
+static void update_photogate_status_accel(void* arg){
+    int photogate_state, photogate_state2;
+    while (1) {
+        // Update the photogate status checkbox based on the current photogate pin state
+        photogate_state = gpio_get_level(INPUT1_GPIO);
+        photogate_state2 = gpio_get_level(INPUT2_GPIO);
+        ui_accelPhotogateStatus(photogate_state, photogate_state2);
+        vTaskDelay(pdMS_TO_TICKS(200));
+    }
+}
+
 void fsaeAccel_reset(void) {
     accel_last_timestamp = 0;
     accel_input1_timestamp = 0;
@@ -257,6 +308,11 @@ void fsaeAccel_deinit(void) {
     if (accel_task_handle != NULL) {
         vTaskDelete(accel_task_handle);
         accel_task_handle = NULL;
+    }
+
+    if(accel_status_checkbox_task_handle != NULL) {
+        vTaskDelete(accel_status_checkbox_task_handle);
+        accel_status_checkbox_task_handle = NULL;
     }
 
     if (accel_queue != NULL) {
@@ -286,6 +342,7 @@ void fsaeAccel_init(void) {
     gpio_isr_handler_add(INPUT2_GPIO, accel_gpio_isr_handler, (void*)(intptr_t)INPUT2_GPIO);
 
     xTaskCreate(accel_task, "accel_task", 2048, NULL, 10, &accel_task_handle);
+    xTaskCreate(update_photogate_status_accel, "update_photogate_status_accel", 2048, NULL, 10, &accel_status_checkbox_task_handle);
 
     fsaeAccel_reset();
 }

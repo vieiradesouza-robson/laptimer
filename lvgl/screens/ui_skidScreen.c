@@ -6,6 +6,7 @@
 #include "../ui.h"
 #include <stdio.h>
 #include <stdbool.h>
+#include "../main/fsaeEvents.h"
 
 lv_obj_t * uic_skidTimeIdx5;
 lv_obj_t * uic_skidTimeIdx4;
@@ -78,6 +79,16 @@ void ui_skidPhotogateStatus(int photogate_state) {
     }
 }
 
+void set_button_text(uint8_t button_status) {
+    if (button_status == BUTTON_START) {
+        lv_label_set_text(ui_Label6, "Start");
+    } else if (button_status == BUTTON_STOP) {
+        lv_label_set_text(ui_Label6, "Stop");
+    } else if (button_status == BUTTON_RESET) {
+        lv_label_set_text(ui_Label6, "Reset");
+    }
+}
+
 // build funtions
 
 void ui_skidScreen_screen_init(void)
@@ -132,7 +143,7 @@ void ui_skidScreen_screen_init(void)
     lv_obj_set_x(ui_Label6, 0);
     lv_obj_set_y(ui_Label6, 150);
     lv_obj_set_align(ui_Label6, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_Label6, "Reset");
+    lv_label_set_text(ui_Label6, "Start");
     lv_obj_set_style_text_font(ui_Label6, &lv_font_montserrat_48, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Panel4 = lv_obj_create(ui_skidScreen);

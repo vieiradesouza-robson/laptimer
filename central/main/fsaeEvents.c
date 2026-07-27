@@ -10,14 +10,8 @@ uint16_t skidCurrentIndex = 0;
 uint64_t last_timestamp = 0;
 uint64_t curr_timestamp = 0;
 bool interrupt_enabled = false;
-typedef enum {
-    SKID_STATE_INIT, //the user has not chosen the car # and driver name, the event is not yet started and the photogate interruptions are disabled
-    SKID_STATE_IDLE, //car # and driver have been chosen, interruption is enabled and we are waiting for the first lap to start
-    SKID_STATE_ACTIVE, //the first lap has started, we are measuring the time between photogate interruptions
-    SKID_STATE_ENDED //the event has ended, the car has crossed the finish line and we are waiting for the reset button to be pressed to reset the event
-} skidState;
 
-skidState current_skid_state = SKID_STATE_INIT;
+skid_button_status_t skid_button_status = BUTTON_START;
 
 void enableInterrupt(){
     if(!interrupt_enabled){
@@ -51,7 +45,7 @@ static void IRAM_ATTR gpio_isr_handler(void* arg) {
     }
 }
 
-static void interrupt_task(void* arg) {
+static void skid_interrupt_task(void* arg) {
 
     BaseType_t newLap = pdFALSE;
     uint64_t diff_us = 0;
@@ -60,45 +54,30 @@ static void interrupt_task(void* arg) {
     while (1) {        
         newLap = xQueueReceive(interrupt_queue, &curr_timestamp, pdMS_TO_TICKS(50));
 
-        if (current_skid_state == SKID_STATE_ACTIVE) {
+        if (!newLap) {
+            curr_timestamp = esp_timer_get_time();
+        }
 
-            if (!newLap) {
-                curr_timestamp = esp_timer_get_time();
-            }
+        diff_us = curr_timestamp - last_timestamp;
+        diff_s = diff_us / 1000000.0f;
+        skidTimes[skidCurrentIndex] = diff_s;
+        ui_skidNewTime(diff_s, skidCurrentIndex);
 
-            diff_us = curr_timestamp - last_timestamp;
-            diff_s = diff_us / 1000000.0f;
-            ui_skidNewTime(diff_s, skidCurrentIndex);
-            skidTimes[skidCurrentIndex] = diff_s;
+        last_timestamp = newLap ? curr_timestamp : last_timestamp;
+        skidCurrentIndex = newLap ? (skidCurrentIndex + 1) % 4 : skidCurrentIndex;
 
-            last_timestamp = newLap ? curr_timestamp : last_timestamp;
-            skidCurrentIndex = newLap ? (skidCurrentIndex + 1) % 4 : skidCurrentIndex;
+        if (skidCurrentIndex == 0 && newLap) {
+            // Calculate average of 2nd and 4th laps
+            float avg = (skidTimes[1] + skidTimes[3]) / 2.0f;
+            ui_skidNewTime(avg, 4);
+        }
 
-            if (skidCurrentIndex == 0 && newLap) {
-                // Calculate average of 2nd and 4th laps
-                float avg = (skidTimes[1] + skidTimes[3]) / 2.0f;
-                ui_skidNewTime(avg, 4);
-                current_skid_state = SKID_STATE_IDLE;
-            }
-
-            if (!interrupt_enabled && diff_us >= INPUT_TIME_MIN_INT_US) {
-                enableInterrupt();
-            }
-
-        } else if (current_skid_state == SKID_STATE_IDLE && newLap) {
-            current_skid_state = SKID_STATE_ACTIVE;
-            last_timestamp = curr_timestamp;
-            skidCurrentIndex = 0;
-            skidTimes[0] = 0.0f;
-            ui_skidNewTime(0.0f, 0);
+        if (!interrupt_enabled && diff_us >= INPUT_TIME_MIN_INT_US) {
+            enableInterrupt();
         }
     }
 
     vTaskDelete(NULL);
-}
-
-void fsaeSkid_DNF(void) {
-
 }
 
 static void update_photogate_status_skid(void* arg){
@@ -111,10 +90,30 @@ static void update_photogate_status_skid(void* arg){
 }
 
 void fsaeSkid_reset(void) {
-
+    skidCurrentIndex = 0;
     // Reset any internal state if necessary
     last_timestamp = 0;
     curr_timestamp = 0;
+}
+
+void fsaeSkid_button_pressed(void) {
+    switch (skid_button_status) {
+        case BUTTON_START:
+            xTaskCreate(skid_interrupt_task, "skid_interrupt_task", 2048, NULL, 10, &skid_task_handle);
+            skid_button_status = BUTTON_STOP;
+            break;
+        case BUTTON_STOP:
+            vTaskDelete(skid_task_handle);
+            skid_button_status = BUTTON_RESET;
+            break;
+        case BUTTON_RESET:
+            fsaeSkid_reset();
+            skid_button_status = BUTTON_START;
+            break;
+        default:
+            break;
+    }
+    set_button_text(skid_button_status);
 }
 
 void fsaeSkid_init(void) {
@@ -136,7 +135,6 @@ void fsaeSkid_init(void) {
     gpio_install_isr_service(0);
     gpio_isr_handler_add(INPUT1_GPIO, gpio_isr_handler, NULL);
 
-    xTaskCreate(interrupt_task, "interrupt_task", 2048, NULL, 10, &skid_task_handle);
     xTaskCreate(update_photogate_status_skid, "update_photogate_status_skid", 2048, NULL, 10, &status_checkbox_task_handle);
     fsaeSkid_reset();
 }

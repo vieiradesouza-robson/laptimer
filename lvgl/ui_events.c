@@ -13,7 +13,7 @@ void accelResetClicked(lv_event_t * e)
 
 void skidResetClicked(lv_event_t * e)
 {
-	fsaeSkid_reset();
+	fsaeSkid_button_pressed();
 	// Your code here
 }
 

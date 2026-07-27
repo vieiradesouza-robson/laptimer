@@ -1,6 +1,9 @@
 #include "central.h"
 
 void app_main(void) {
+    // rtc_module_init();
+    // sdcard_init();
+
     waveshare_esp32_s3_rgb_lcd_init();
     if (lvgl_port_lock(-1)) {
         ui_init();

@@ -87,6 +87,7 @@ static void skid_interrupt_task(void* arg) {
             // Calculate average of 2nd and 4th laps
             float avg = (skidTimes[1] + skidTimes[3]) / 2.0f;
             ui_skidNewTime(avg, 4);
+            sdcard_log_skid_result(rtc_get_timestamp(), skidTimes[0], skidTimes[1], skidTimes[2], skidTimes[3], avg);
             skid_button_status = BUTTON_RESET;
             set_button_text(skid_button_status);
             disableInterrupt();
@@ -300,6 +301,7 @@ static void accel_task(void* arg) {
             runOpen = false;
 
             ui_accelNewTime(diff_s);
+            sdcard_log_accel_result(rtc_get_timestamp(), diff_s);
 
             // Run complete: both gates are already disabled by the ISR, just
             // update the button state and stop the task

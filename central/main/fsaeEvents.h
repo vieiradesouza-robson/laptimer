@@ -13,6 +13,8 @@
 #include "freertos/queue.h"
 #include "../../lvgl/screens/ui_skidScreen.h"
 #include "../../lvgl/screens/ui_accelScreen.h"
+#include "rtc.h"
+#include "sdcard.h"
 
 #define INPUT_TIME_MIN_INT_US 1500000 // 1500 ms debounce time for skidpad and acceleration inputs
 

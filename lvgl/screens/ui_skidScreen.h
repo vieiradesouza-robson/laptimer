@@ -33,6 +33,9 @@ extern lv_obj_t * ui_skidTimeIdx2;
 extern lv_obj_t * ui_skidTimeIdx3;
 extern lv_obj_t * ui_skidTimeIdx4;
 extern lv_obj_t * ui_skidTimeIdx5;
+extern lv_obj_t * ui_LastTimesSkid;
+extern lv_obj_t * ui_dropdownEquipeSkid;
+extern lv_obj_t * ui_dropdownPilotoSkid;
 // CUSTOM VARIABLES
 extern lv_obj_t * uic_skidScreen;
 extern lv_obj_t * uic_skidReset;
@@ -51,6 +54,10 @@ void ui_skidNewTime(float timeSec, uint16_t lapIdx);
 void ui_skidPhotogateStatus(int photogate_state);
 void set_button_text(uint8_t button_status);
 void ui_skidClearTimes(void);
+bool ui_skidSelectionValid(void);
+void ui_skidGetSelection(char *team_out, size_t team_out_len, int *driver_out);
+void ui_skidResetDropdowns(void);
+void ui_skidSetLastTimes(const char *text);
 
 #ifdef __cplusplus
 } /*extern "C"*/

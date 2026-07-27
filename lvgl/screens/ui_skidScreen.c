@@ -6,6 +6,8 @@
 #include "../ui.h"
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
 #include "../main/fsaeEvents.h"
 
 lv_obj_t * uic_skidTimeIdx5;
@@ -38,6 +40,9 @@ lv_obj_t * ui_skidTimeIdx2 = NULL;
 lv_obj_t * ui_skidTimeIdx3 = NULL;
 lv_obj_t * ui_skidTimeIdx4 = NULL;
 lv_obj_t * ui_skidTimeIdx5 = NULL;
+lv_obj_t * ui_LastTimesSkid = NULL;
+lv_obj_t * ui_dropdownEquipeSkid = NULL;
+lv_obj_t * ui_dropdownPilotoSkid = NULL;
 
 lv_obj_t **skidTimeLabels[5] = {&ui_skidTime1, &ui_skidTime2, &ui_skidTime3, &ui_skidTime4, &ui_skidAvg24};
 
@@ -47,7 +52,6 @@ void ui_event_home3(lv_event_t * e)
     lv_event_code_t event_code = lv_event_get_code(e);
 
     if(event_code == LV_EVENT_CLICKED) {
-        // ui_skidScreen_screen_destroy();
         _ui_screen_change(&ui_mainScreen, LV_SCR_LOAD_ANIM_NONE, 500, 0, &ui_mainScreen_screen_init);
     }
 }
@@ -85,13 +89,46 @@ void ui_skidPhotogateStatus(int photogate_state) {
 
 void set_button_text(uint8_t button_status) {
     if (button_status == BUTTON_START) {
-        lv_label_set_text(ui_Label6, "Start");
+        lv_label_set_text(ui_Label6, "Iniciar");
     } else if (button_status == BUTTON_STOP) {
-        lv_label_set_text(ui_Label6, "Stop");
+        lv_label_set_text(ui_Label6, "Parar");
     } else if (button_status == BUTTON_RESET) {
-        lv_label_set_text(ui_Label6, "Reset");
+        lv_label_set_text(ui_Label6, "Resetar");
     }
 }
+
+bool ui_skidSelectionValid(void) {
+    return lv_dropdown_get_selected(ui_dropdownEquipeSkid) != 0 &&
+           lv_dropdown_get_selected(ui_dropdownPilotoSkid) != 0;
+}
+
+void ui_skidGetSelection(char *team_out, size_t team_out_len, int *driver_out) {
+    char buf[32];
+    lv_dropdown_get_selected_str(ui_dropdownEquipeSkid, buf, sizeof(buf));
+
+    // Team option is "<number> <name>"; keep only the number
+    char *space = strchr(buf, ' ');
+    size_t len = space ? (size_t)(space - buf) : strlen(buf);
+    if (len >= team_out_len) {
+        len = team_out_len - 1;
+    }
+    memcpy(team_out, buf, len);
+    team_out[len] = '\0';
+
+    char driver_buf[16];
+    lv_dropdown_get_selected_str(ui_dropdownPilotoSkid, driver_buf, sizeof(driver_buf));
+    *driver_out = atoi(driver_buf);
+}
+
+void ui_skidResetDropdowns(void) {
+    lv_dropdown_set_selected(ui_dropdownEquipeSkid, 0);
+    lv_dropdown_set_selected(ui_dropdownPilotoSkid, 0);
+}
+
+void ui_skidSetLastTimes(const char *text) {
+    lv_textarea_set_text(ui_LastTimesSkid, text);
+}
+
 
 // build funtions
 
@@ -126,7 +163,7 @@ void ui_skidScreen_screen_init(void)
     lv_obj_set_style_bg_opa(ui_Panel3, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_skidPhotoGateStatus = lv_checkbox_create(ui_skidScreen);
-    lv_checkbox_set_text(ui_skidPhotoGateStatus, "Photogate ready");
+    lv_checkbox_set_text(ui_skidPhotoGateStatus, "Photogate pronto");
     lv_obj_set_width(ui_skidPhotoGateStatus, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_skidPhotoGateStatus, LV_SIZE_CONTENT);    /// 1
     lv_obj_set_x(ui_skidPhotoGateStatus, 297);
@@ -137,24 +174,24 @@ void ui_skidScreen_screen_init(void)
     ui_skidReset = lv_btn_create(ui_skidScreen);
     lv_obj_set_width(ui_skidReset, 208);
     lv_obj_set_height(ui_skidReset, 92);
-    lv_obj_set_x(ui_skidReset, 0);
-    lv_obj_set_y(ui_skidReset, 150);
+    lv_obj_set_x(ui_skidReset, -1);
+    lv_obj_set_y(ui_skidReset, 183);
     lv_obj_set_align(ui_skidReset, LV_ALIGN_CENTER);
 
     ui_Label6 = lv_label_create(ui_skidScreen);
     lv_obj_set_width(ui_Label6, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_Label6, LV_SIZE_CONTENT);    /// 1
     lv_obj_set_x(ui_Label6, 0);
-    lv_obj_set_y(ui_Label6, 150);
+    lv_obj_set_y(ui_Label6, 182);
     lv_obj_set_align(ui_Label6, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_Label6, "Start");
+    lv_label_set_text(ui_Label6, "Iniciar");
     lv_obj_set_style_text_font(ui_Label6, &lv_font_montserrat_48, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Panel4 = lv_obj_create(ui_skidScreen);
     lv_obj_set_width(ui_Panel4, 772);
-    lv_obj_set_height(ui_Panel4, 260);
-    lv_obj_set_x(ui_Panel4, 0);
-    lv_obj_set_y(ui_Panel4, -40);
+    lv_obj_set_height(ui_Panel4, 322);
+    lv_obj_set_x(ui_Panel4, 1);
+    lv_obj_set_y(ui_Panel4, -24);
     lv_obj_set_align(ui_Panel4, LV_ALIGN_CENTER);
     lv_obj_clear_flag(ui_Panel4, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
     lv_obj_set_style_bg_color(ui_Panel4, lv_color_hex(0xCD0000), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -163,8 +200,8 @@ void ui_skidScreen_screen_init(void)
     ui_skidTime1 = lv_label_create(ui_skidScreen);
     lv_obj_set_width(ui_skidTime1, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_skidTime1, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_skidTime1, -100);
-    lv_obj_set_y(ui_skidTime1, -130);
+    lv_obj_set_x(ui_skidTime1, -247);
+    lv_obj_set_y(ui_skidTime1, -145);
     lv_obj_set_align(ui_skidTime1, LV_ALIGN_CENTER);
     lv_label_set_text(ui_skidTime1, "0.000s");
     lv_obj_set_style_text_color(ui_skidTime1, lv_color_hex(0xFFD900), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -174,8 +211,8 @@ void ui_skidScreen_screen_init(void)
     ui_skidTime2 = lv_label_create(ui_skidScreen);
     lv_obj_set_width(ui_skidTime2, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_skidTime2, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_skidTime2, -100);
-    lv_obj_set_y(ui_skidTime2, -70);
+    lv_obj_set_x(ui_skidTime2, -246);
+    lv_obj_set_y(ui_skidTime2, -84);
     lv_obj_set_align(ui_skidTime2, LV_ALIGN_CENTER);
     lv_label_set_text(ui_skidTime2, "0.000s");
     lv_obj_set_style_text_color(ui_skidTime2, lv_color_hex(0xFFD900), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -185,8 +222,8 @@ void ui_skidScreen_screen_init(void)
     ui_skidTime3 = lv_label_create(ui_skidScreen);
     lv_obj_set_width(ui_skidTime3, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_skidTime3, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_skidTime3, -100);
-    lv_obj_set_y(ui_skidTime3, -10);
+    lv_obj_set_x(ui_skidTime3, -247);
+    lv_obj_set_y(ui_skidTime3, -26);
     lv_obj_set_align(ui_skidTime3, LV_ALIGN_CENTER);
     lv_label_set_text(ui_skidTime3, "0.000s");
     lv_obj_set_style_text_color(ui_skidTime3, lv_color_hex(0xFFD900), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -196,8 +233,8 @@ void ui_skidScreen_screen_init(void)
     ui_skidTime4 = lv_label_create(ui_skidScreen);
     lv_obj_set_width(ui_skidTime4, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_skidTime4, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_skidTime4, -100);
-    lv_obj_set_y(ui_skidTime4, 50);
+    lv_obj_set_x(ui_skidTime4, -247);
+    lv_obj_set_y(ui_skidTime4, 29);
     lv_obj_set_align(ui_skidTime4, LV_ALIGN_CENTER);
     lv_label_set_text(ui_skidTime4, "0.000s");
     lv_obj_set_style_text_color(ui_skidTime4, lv_color_hex(0xFFD900), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -207,8 +244,8 @@ void ui_skidScreen_screen_init(void)
     ui_skidAvg24 = lv_label_create(ui_skidScreen);
     lv_obj_set_width(ui_skidAvg24, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_skidAvg24, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_skidAvg24, 190);
-    lv_obj_set_y(ui_skidAvg24, -40);
+    lv_obj_set_x(ui_skidAvg24, -185);
+    lv_obj_set_y(ui_skidAvg24, 93);
     lv_obj_set_align(ui_skidAvg24, LV_ALIGN_CENTER);
     lv_label_set_text(ui_skidAvg24, "0.000s");
     lv_obj_set_style_text_color(ui_skidAvg24, lv_color_hex(0xFFD900), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -218,10 +255,10 @@ void ui_skidScreen_screen_init(void)
     ui_skidTimeIdx1 = lv_label_create(ui_skidScreen);
     lv_obj_set_width(ui_skidTimeIdx1, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_skidTimeIdx1, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_skidTimeIdx1, -280);
-    lv_obj_set_y(ui_skidTimeIdx1, -130);
+    lv_obj_set_x(ui_skidTimeIdx1, -349);
+    lv_obj_set_y(ui_skidTimeIdx1, -144);
     lv_obj_set_align(ui_skidTimeIdx1, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_skidTimeIdx1, "Volta 1:");
+    lv_label_set_text(ui_skidTimeIdx1, "1");
     lv_obj_set_style_text_color(ui_skidTimeIdx1, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_skidTimeIdx1, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_skidTimeIdx1, &lv_font_montserrat_48, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -229,10 +266,10 @@ void ui_skidScreen_screen_init(void)
     ui_skidTimeIdx2 = lv_label_create(ui_skidScreen);
     lv_obj_set_width(ui_skidTimeIdx2, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_skidTimeIdx2, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_skidTimeIdx2, -280);
-    lv_obj_set_y(ui_skidTimeIdx2, -70);
+    lv_obj_set_x(ui_skidTimeIdx2, -347);
+    lv_obj_set_y(ui_skidTimeIdx2, -86);
     lv_obj_set_align(ui_skidTimeIdx2, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_skidTimeIdx2, "Volta 2:");
+    lv_label_set_text(ui_skidTimeIdx2, "2");
     lv_obj_set_style_text_color(ui_skidTimeIdx2, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_skidTimeIdx2, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_skidTimeIdx2, &lv_font_montserrat_48, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -240,10 +277,10 @@ void ui_skidScreen_screen_init(void)
     ui_skidTimeIdx3 = lv_label_create(ui_skidScreen);
     lv_obj_set_width(ui_skidTimeIdx3, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_skidTimeIdx3, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_skidTimeIdx3, -280);
-    lv_obj_set_y(ui_skidTimeIdx3, -10);
+    lv_obj_set_x(ui_skidTimeIdx3, -348);
+    lv_obj_set_y(ui_skidTimeIdx3, -28);
     lv_obj_set_align(ui_skidTimeIdx3, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_skidTimeIdx3, "Volta 3:");
+    lv_label_set_text(ui_skidTimeIdx3, "3");
     lv_obj_set_style_text_color(ui_skidTimeIdx3, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_skidTimeIdx3, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_skidTimeIdx3, &lv_font_montserrat_48, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -251,10 +288,10 @@ void ui_skidScreen_screen_init(void)
     ui_skidTimeIdx4 = lv_label_create(ui_skidScreen);
     lv_obj_set_width(ui_skidTimeIdx4, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_skidTimeIdx4, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_skidTimeIdx4, -280);
-    lv_obj_set_y(ui_skidTimeIdx4, 50);
+    lv_obj_set_x(ui_skidTimeIdx4, -347);
+    lv_obj_set_y(ui_skidTimeIdx4, 26);
     lv_obj_set_align(ui_skidTimeIdx4, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_skidTimeIdx4, "Volta 4:");
+    lv_label_set_text(ui_skidTimeIdx4, "4");
     lv_obj_set_style_text_color(ui_skidTimeIdx4, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_skidTimeIdx4, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_skidTimeIdx4, &lv_font_montserrat_48, LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -262,13 +299,42 @@ void ui_skidScreen_screen_init(void)
     ui_skidTimeIdx5 = lv_label_create(ui_skidScreen);
     lv_obj_set_width(ui_skidTimeIdx5, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_skidTimeIdx5, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_skidTimeIdx5, 190);
-    lv_obj_set_y(ui_skidTimeIdx5, -106);
+    lv_obj_set_x(ui_skidTimeIdx5, -316);
+    lv_obj_set_y(ui_skidTimeIdx5, 92);
     lv_obj_set_align(ui_skidTimeIdx5, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_skidTimeIdx5, "Media 2 & 4");
+    lv_label_set_text(ui_skidTimeIdx5, "Avg");
     lv_obj_set_style_text_color(ui_skidTimeIdx5, lv_color_hex(0xFFFFFF), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_skidTimeIdx5, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_skidTimeIdx5, &lv_font_montserrat_48, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_LastTimesSkid = lv_textarea_create(ui_skidScreen);
+    lv_obj_set_width(ui_LastTimesSkid, 442);
+    lv_obj_set_height(ui_LastTimesSkid, 284);
+    lv_obj_set_x(ui_LastTimesSkid, 152);
+    lv_obj_set_y(ui_LastTimesSkid, -27);
+    lv_obj_set_align(ui_LastTimesSkid, LV_ALIGN_CENTER);
+    lv_textarea_set_placeholder_text(ui_LastTimesSkid, "Placeholder...");
+    lv_obj_set_style_text_font(ui_LastTimesSkid, &lv_font_montserrat_42, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_dropdownEquipeSkid = lv_dropdown_create(ui_skidScreen);
+    lv_dropdown_set_options(ui_dropdownEquipeSkid,
+                            "Equipe\n1 EESC-USP Formula SAE\n2 Maua Racing\n3 Formula Cefast\n4 FSAE Unicamp\n5 Formula UFMG\n6 Formula Del-Racing\n7 Formula UFSM\n8 UFPR Formula\n9 Poli Racing\n10 Icarus UFRJ de Formula SAE\n11 Formula FEI Combustao\n12 Cheetah Racing\n13 Zeus Formula SAE\n14 Unesp Racing\n15 Formula UTFPR\n16 Formula UFPB\n17 Protto UFSC Motorsport\n18 Fenix Racing\n19 Apuama Racing\n20 V8 Racing\n21 Formula CEM IC\n22 FEB Racing\n23 KRT UFBA\n24 TEC Racing\n25 Scuderia UFABC\n26 FSAE Carcara\n27 PUCPR Racing\n28 Falcons UFFormula SAE\n29 EEL Racing\n30 Buffalo de Formula SAE\n32 UFU Racing\n33 Formula Route UFSCar\n34 Iron Racers\n35 Badger Racing\n36 Escuderia UFJF\n38 Taurus Racing\n40 Scuderia UFCG\n41 FIUBA Racing Team\n42 Scuderia FSU\n43 Mercury\n45 Satirus\n46 UTFast F-SAE Racing\nE1 Formula FEI Eletrico\nE2 UFPR Formula\nE3 B'Energy Racing\nE4 Faraday E-Racing\nE5 EESC-USP Tupa\nE6 Ampera Racing\nE7 Formula Tesla UFMG\nE8 Unicamp E-Racing\nE9 Minerva eRacing\nE12 Capibarib-E Racing\nE15 Tadarida Electric Racing");
+    lv_obj_set_width(ui_dropdownEquipeSkid, 316);
+    lv_obj_set_height(ui_dropdownEquipeSkid, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_dropdownEquipeSkid, -121);
+    lv_obj_set_y(ui_dropdownEquipeSkid, -211);
+    lv_obj_set_align(ui_dropdownEquipeSkid, LV_ALIGN_CENTER);
+    lv_obj_add_flag(ui_dropdownEquipeSkid, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
+
+    ui_dropdownPilotoSkid = lv_dropdown_create(ui_skidScreen);
+    lv_dropdown_set_options(ui_dropdownPilotoSkid,
+                            "Piloto\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n21\n22\n23\n24\n25\n26\n27\n28\n29\n30\n31\n32\n33\n34\n35\n36\n37\n38\n39\n40\n41\n42\n43\n44\n45\n46\n47\n48\n49\n50\n51\n52\n53\n54\n55\n56\n57\n58\n59\n60\n61\n62\n63\n64\n65\n66\n67\n68\n69\n70\n71\n72\n73\n74\n75\n76\n77\n78\n79\n80\n81\n82\n83\n84\n85\n86\n87\n88\n89\n90\n91\n92\n93\n94\n95\n96\n97\n98\n99\n100\n101\n102\n103\n104\n105\n106\n107\n108\n109\n110\n111\n112\n113\n114\n115\n116\n117\n118\n119\n120\n121\n122\n123\n124\n125\n126\n127\n128\n129\n130\n131\n132\n133\n134\n135\n136\n137\n138\n139\n140\n141\n142\n143\n144\n145\n146\n147\n148\n149\n150\n151\n152\n153\n154\n155\n156\n157\n158\n159\n160\n161\n162\n163\n164\n165\n166\n167\n168\n169\n170\n171\n172\n173\n174\n175\n176\n177\n178\n179\n180\n181\n182\n183\n184\n185\n186\n187\n188\n189\n190\n191\n192\n193\n194\n195\n196\n197\n198\n199\n200\n201\n202\n203\n204\n205\n206\n207\n208\n209\n210\n211\n212\n213\n214\n215\n216\n217\n218\n219\n220\n221\n222\n223\n224\n225\n226\n227\n228\n229\n230\n231\n232\n233\n234\n235\n236\n237\n238\n239\n240\n241\n242\n243\n244\n245\n246\n247\n248\n249\n250");
+    lv_obj_set_width(ui_dropdownPilotoSkid, 150);
+    lv_obj_set_height(ui_dropdownPilotoSkid, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_dropdownPilotoSkid, 118);
+    lv_obj_set_y(ui_dropdownPilotoSkid, -210);
+    lv_obj_set_align(ui_dropdownPilotoSkid, LV_ALIGN_CENTER);
+    lv_obj_add_flag(ui_dropdownPilotoSkid, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
 
     lv_obj_add_event_cb(ui_home3, ui_event_home3, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_skidReset, ui_event_skidReset, LV_EVENT_ALL, NULL);
@@ -322,5 +388,8 @@ void ui_skidScreen_screen_destroy(void)
     ui_skidTimeIdx4 = NULL;
     uic_skidTimeIdx5 = NULL;
     ui_skidTimeIdx5 = NULL;
+    ui_LastTimesSkid = NULL;
+    ui_dropdownEquipeSkid = NULL;
+    ui_dropdownPilotoSkid = NULL;
 
 }

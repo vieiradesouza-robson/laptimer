@@ -6,6 +6,8 @@
 #include "../ui.h"
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
 #include "../main/fsaeEvents.h"
 
 lv_obj_t * uic_accelTime;
@@ -23,14 +25,16 @@ lv_obj_t * ui_accelReset = NULL;
 lv_obj_t * ui_Label5 = NULL;
 lv_obj_t * ui_Panel2 = NULL;
 lv_obj_t * ui_accelTime = NULL;
+lv_obj_t * ui_lastTimesAccel = NULL;
+lv_obj_t * ui_dropdownEquipeAccel = NULL;
+lv_obj_t * ui_dropdownPilotoAccel = NULL;
 // event funtions
 void ui_event_home2(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
 
     if(event_code == LV_EVENT_CLICKED) {
-        // ui_accelScreen_screen_destroy();
-        _ui_screen_change(&ui_mainScreen, LV_SCR_LOAD_ANIM_NONE, 500, 0, &ui_mainScreen_screen_init);
+        _ui_screen_change(&ui_mainScreen, LV_SCR_LOAD_ANIM_FADE_ON, 500, 0, &ui_mainScreen_screen_init);
     }
 }
 
@@ -59,6 +63,38 @@ void set_accel_button_text(uint8_t button_status) {
     } else if (button_status == BUTTON_RESET) {
         lv_label_set_text(ui_Label5, "Reset");
     }
+}
+
+bool ui_accelSelectionValid(void) {
+    return lv_dropdown_get_selected(ui_dropdownEquipeAccel) != 0 &&
+           lv_dropdown_get_selected(ui_dropdownPilotoAccel) != 0;
+}
+
+void ui_accelGetSelection(char *team_out, size_t team_out_len, int *driver_out) {
+    char buf[32];
+    lv_dropdown_get_selected_str(ui_dropdownEquipeAccel, buf, sizeof(buf));
+
+    // Team option is "<number> <name>"; keep only the number
+    char *space = strchr(buf, ' ');
+    size_t len = space ? (size_t)(space - buf) : strlen(buf);
+    if (len >= team_out_len) {
+        len = team_out_len - 1;
+    }
+    memcpy(team_out, buf, len);
+    team_out[len] = '\0';
+
+    char driver_buf[16];
+    lv_dropdown_get_selected_str(ui_dropdownPilotoAccel, driver_buf, sizeof(driver_buf));
+    *driver_out = atoi(driver_buf);
+}
+
+void ui_accelResetDropdowns(void) {
+    lv_dropdown_set_selected(ui_dropdownEquipeAccel, 0);
+    lv_dropdown_set_selected(ui_dropdownPilotoAccel, 0);
+}
+
+void ui_accelSetLastTimes(const char *text) {
+    lv_textarea_set_text(ui_lastTimesAccel, text);
 }
 
 void ui_accelPhotogateStatus(int photogate_state, int photogate_state2){
@@ -129,23 +165,23 @@ void ui_accelScreen_screen_init(void)
     lv_obj_set_width(ui_accelReset, 208);
     lv_obj_set_height(ui_accelReset, 92);
     lv_obj_set_x(ui_accelReset, 0);
-    lv_obj_set_y(ui_accelReset, 150);
+    lv_obj_set_y(ui_accelReset, 181);
     lv_obj_set_align(ui_accelReset, LV_ALIGN_CENTER);
 
     ui_Label5 = lv_label_create(ui_accelScreen);
     lv_obj_set_width(ui_Label5, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_Label5, LV_SIZE_CONTENT);    /// 1
     lv_obj_set_x(ui_Label5, 0);
-    lv_obj_set_y(ui_Label5, 150);
+    lv_obj_set_y(ui_Label5, 184);
     lv_obj_set_align(ui_Label5, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_Label5, "Start");
+    lv_label_set_text(ui_Label5, "Iniciar");
     lv_obj_set_style_text_font(ui_Label5, &lv_font_montserrat_48, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Panel2 = lv_obj_create(ui_accelScreen);
     lv_obj_set_width(ui_Panel2, 772);
     lv_obj_set_height(ui_Panel2, 260);
-    lv_obj_set_x(ui_Panel2, 0);
-    lv_obj_set_y(ui_Panel2, -40);
+    lv_obj_set_x(ui_Panel2, 2);
+    lv_obj_set_y(ui_Panel2, -9);
     lv_obj_set_align(ui_Panel2, LV_ALIGN_CENTER);
     lv_obj_clear_flag(ui_Panel2, LV_OBJ_FLAG_SCROLLABLE);      /// Flags
     lv_obj_set_style_bg_color(ui_Panel2, lv_color_hex(0xCD0000), LV_PART_MAIN | LV_STATE_DEFAULT);
@@ -154,13 +190,42 @@ void ui_accelScreen_screen_init(void)
     ui_accelTime = lv_label_create(ui_accelScreen);
     lv_obj_set_width(ui_accelTime, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_accelTime, LV_SIZE_CONTENT);    /// 1
-    lv_obj_set_x(ui_accelTime, 0);
-    lv_obj_set_y(ui_accelTime, -40);
+    lv_obj_set_x(ui_accelTime, -207);
+    lv_obj_set_y(ui_accelTime, -17);
     lv_obj_set_align(ui_accelTime, LV_ALIGN_CENTER);
     lv_label_set_text(ui_accelTime, "0.000s");
     lv_obj_set_style_text_color(ui_accelTime, lv_color_hex(0xFFD900), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_accelTime, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_accelTime, &lv_font_montserrat_48, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_lastTimesAccel = lv_textarea_create(ui_accelScreen);
+    lv_obj_set_width(ui_lastTimesAccel, 404);
+    lv_obj_set_height(ui_lastTimesAccel, 230);
+    lv_obj_set_x(ui_lastTimesAccel, 171);
+    lv_obj_set_y(ui_lastTimesAccel, -8);
+    lv_obj_set_align(ui_lastTimesAccel, LV_ALIGN_CENTER);
+    lv_textarea_set_placeholder_text(ui_lastTimesAccel, "Placeholder...");
+    lv_obj_set_style_text_font(ui_lastTimesAccel, &lv_font_montserrat_42, LV_PART_MAIN | LV_STATE_DEFAULT);
+
+    ui_dropdownEquipeAccel = lv_dropdown_create(ui_accelScreen);
+    lv_dropdown_set_options(ui_dropdownEquipeAccel,
+                            "Equipe\n1 EESC-USP Formula SAE\n2 Maua Racing\n3 Formula Cefast\n4 FSAE Unicamp\n5 Formula UFMG\n6 Formula Del-Racing\n7 Formula UFSM\n8 UFPR Formula\n9 Poli Racing\n10 Icarus UFRJ de Formula SAE\n11 Formula FEI Combustao\n12 Cheetah Racing\n13 Zeus Formula SAE\n14 Unesp Racing\n15 Formula UTFPR\n16 Formula UFPB\n17 Protto UFSC Motorsport\n18 Fenix Racing\n19 Apuama Racing\n20 V8 Racing\n21 Formula CEM IC\n22 FEB Racing\n23 KRT UFBA\n24 TEC Racing\n25 Scuderia UFABC\n26 FSAE Carcara\n27 PUCPR Racing\n28 Falcons UFFormula SAE\n29 EEL Racing\n30 Buffalo de Formula SAE\n32 UFU Racing\n33 Formula Route UFSCar\n34 Iron Racers\n35 Badger Racing\n36 Escuderia UFJF\n38 Taurus Racing\n40 Scuderia UFCG\n41 FIUBA Racing Team\n42 Scuderia FSU\n43 Mercury\n45 Satirus\n46 UTFast F-SAE Racing\nE1 Formula FEI Eletrico\nE2 UFPR Formula\nE3 B'Energy Racing\nE4 Faraday E-Racing\nE5 EESC-USP Tupa\nE6 Ampera Racing\nE7 Formula Tesla UFMG\nE8 Unicamp E-Racing\nE9 Minerva eRacing\nE12 Capibarib-E Racing\nE15 Tadarida Electric Racing");
+    lv_obj_set_width(ui_dropdownEquipeAccel, 276);
+    lv_obj_set_height(ui_dropdownEquipeAccel, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_dropdownEquipeAccel, -136);
+    lv_obj_set_y(ui_dropdownEquipeAccel, -211);
+    lv_obj_set_align(ui_dropdownEquipeAccel, LV_ALIGN_CENTER);
+    lv_obj_add_flag(ui_dropdownEquipeAccel, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
+
+    ui_dropdownPilotoAccel = lv_dropdown_create(ui_accelScreen);
+    lv_dropdown_set_options(ui_dropdownPilotoAccel,
+                            "Piloto\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n21\n22\n23\n24\n25\n26\n27\n28\n29\n30\n31\n32\n33\n34\n35\n36\n37\n38\n39\n40\n41\n42\n43\n44\n45\n46\n47\n48\n49\n50\n51\n52\n53\n54\n55\n56\n57\n58\n59\n60\n61\n62\n63\n64\n65\n66\n67\n68\n69\n70\n71\n72\n73\n74\n75\n76\n77\n78\n79\n80\n81\n82\n83\n84\n85\n86\n87\n88\n89\n90\n91\n92\n93\n94\n95\n96\n97\n98\n99\n100\n101\n102\n103\n104\n105\n106\n107\n108\n109\n110\n111\n112\n113\n114\n115\n116\n117\n118\n119\n120\n121\n122\n123\n124\n125\n126\n127\n128\n129\n130\n131\n132\n133\n134\n135\n136\n137\n138\n139\n140\n141\n142\n143\n144\n145\n146\n147\n148\n149\n150\n151\n152\n153\n154\n155\n156\n157\n158\n159\n160\n161\n162\n163\n164\n165\n166\n167\n168\n169\n170\n171\n172\n173\n174\n175\n176\n177\n178\n179\n180\n181\n182\n183\n184\n185\n186\n187\n188\n189\n190\n191\n192\n193\n194\n195\n196\n197\n198\n199\n200\n201\n202\n203\n204\n205\n206\n207\n208\n209\n210\n211\n212\n213\n214\n215\n216\n217\n218\n219\n220\n221\n222\n223\n224\n225\n226\n227\n228\n229\n230\n231\n232\n233\n234\n235\n236\n237\n238\n239\n240\n241\n242\n243\n244\n245\n246\n247\n248\n249\n250\n");
+    lv_obj_set_width(ui_dropdownPilotoAccel, 274);
+    lv_obj_set_height(ui_dropdownPilotoAccel, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_dropdownPilotoAccel, -136);
+    lv_obj_set_y(ui_dropdownPilotoAccel, -164);
+    lv_obj_set_align(ui_dropdownPilotoAccel, LV_ALIGN_CENTER);
+    lv_obj_add_flag(ui_dropdownPilotoAccel, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
 
     lv_obj_add_event_cb(ui_home2, ui_event_home2, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_accelReset, ui_event_accelReset, LV_EVENT_ALL, NULL);
@@ -192,5 +257,8 @@ void ui_accelScreen_screen_destroy(void)
     ui_Panel2 = NULL;
     uic_accelTime = NULL;
     ui_accelTime = NULL;
+    ui_lastTimesAccel = NULL;
+    ui_dropdownEquipeAccel = NULL;
+    ui_dropdownPilotoAccel = NULL;
 
 }

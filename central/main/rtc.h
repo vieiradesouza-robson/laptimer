@@ -12,7 +12,6 @@ typedef struct {
     uint8_t second;
 } rtc_datetime_t;
 
-void rtc_module_init(void);
 rtc_datetime_t rtc_get_timestamp(void);
 
 #endif //INC_RTC_H

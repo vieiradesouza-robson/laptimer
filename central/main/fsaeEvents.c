@@ -14,6 +14,9 @@ static bool skid_awaiting_first_trigger = true;
 
 button_status_t skid_button_status = BUTTON_START;
 
+static char skid_team[8] = "";
+static int skid_driver = 0;
+
 void enableInterrupt(){
     if(!interrupt_enabled){
         gpio_intr_enable(INPUT1_GPIO);
@@ -87,7 +90,12 @@ static void skid_interrupt_task(void* arg) {
             // Calculate average of 2nd and 4th laps
             float avg = (skidTimes[1] + skidTimes[3]) / 2.0f;
             ui_skidNewTime(avg, 4);
-            sdcard_log_skid_result(rtc_get_timestamp(), skidTimes[0], skidTimes[1], skidTimes[2], skidTimes[3], avg);
+            sdcard_log_skid_result(rtc_get_timestamp(), skid_team, skid_driver, skidTimes[0], skidTimes[1], skidTimes[2], skidTimes[3], avg);
+            {
+                char last_results[256];
+                sdcard_get_last_skid_results(last_results, sizeof(last_results));
+                ui_skidSetLastTimes(last_results);
+            }
             skid_button_status = BUTTON_RESET;
             set_button_text(skid_button_status);
             disableInterrupt();
@@ -119,8 +127,14 @@ void fsaeSkid_reset(void) {
 void fsaeSkid_button_pressed(void) {
     switch (skid_button_status) {
         case BUTTON_START:
+            if (!ui_skidSelectionValid()) {
+                break; // require both team and driver selected before starting
+            }
+            ui_skidGetSelection(skid_team, sizeof(skid_team), &skid_driver);
             xQueueReset(interrupt_queue); // clear interruption queue before starting a new run
-            xTaskCreate(skid_interrupt_task, "skid_interrupt_task", 2048, NULL, 10, &skid_task_handle);
+            // Stack must be large enough for the RTC (I2C) + SD card (SPI/FATFS)
+            // logging call chain, including newlib's float-formatting printf path
+            xTaskCreate(skid_interrupt_task, "skid_interrupt_task", 8192, NULL, 10, &skid_task_handle);
             skid_button_status = BUTTON_STOP;
             break;
         case BUTTON_STOP:
@@ -134,6 +148,7 @@ void fsaeSkid_button_pressed(void) {
             break;
         case BUTTON_RESET:
             ui_skidClearTimes();
+            ui_skidResetDropdowns();
             fsaeSkid_reset();
             skid_button_status = BUTTON_START;
             break;
@@ -172,6 +187,10 @@ void fsaeSkid_init(void) {
     xTaskCreate(update_photogate_status_skid, "update_photogate_status_skid", 2048, NULL, 10, &status_checkbox_task_handle);
     fsaeSkid_reset();
     set_button_text(skid_button_status);
+
+    char last_results[256];
+    sdcard_get_last_skid_results(last_results, sizeof(last_results));
+    ui_skidSetLastTimes(last_results);
 }
 
 void fsaeSkid_deinit(void) {
@@ -212,6 +231,9 @@ static bool accel_input2_intr_enabled = false;
 bool runOpen = false;
 
 button_status_t accel_button_status = BUTTON_START;
+
+static char accel_team[8] = "";
+static int accel_driver = 0;
 
 static void enableAccelInput1Interrupt(void) {
     if (!accel_input1_intr_enabled) {
@@ -301,7 +323,12 @@ static void accel_task(void* arg) {
             runOpen = false;
 
             ui_accelNewTime(diff_s);
-            sdcard_log_accel_result(rtc_get_timestamp(), diff_s);
+            sdcard_log_accel_result(rtc_get_timestamp(), accel_team, accel_driver, diff_s);
+            {
+                char last_results[256];
+                sdcard_get_last_accel_results(last_results, sizeof(last_results));
+                ui_accelSetLastTimes(last_results);
+            }
 
             // Run complete: both gates are already disabled by the ISR, just
             // update the button state and stop the task
@@ -342,9 +369,15 @@ void fsaeAccel_reset(void) {
 void fsaeAccel_button_pressed(void) {
     switch (accel_button_status) {
         case BUTTON_START:
+            if (!ui_accelSelectionValid()) {
+                break; // require both team and driver selected before starting
+            }
+            ui_accelGetSelection(accel_team, sizeof(accel_team), &accel_driver);
             xQueueReset(accel_queue); // clear interruption queue before starting a new run
             enableAccelInput1Interrupt();
-            xTaskCreate(accel_task, "accel_task", 2048, NULL, 10, &accel_task_handle);
+            // Stack must be large enough for the RTC (I2C) + SD card (SPI/FATFS)
+            // logging call chain, including newlib's float-formatting printf path
+            xTaskCreate(accel_task, "accel_task", 8192, NULL, 10, &accel_task_handle);
             accel_button_status = BUTTON_STOP;
             break;
         case BUTTON_STOP:
@@ -359,6 +392,7 @@ void fsaeAccel_button_pressed(void) {
             break;
         case BUTTON_RESET:
             ui_accelNewTime(0.0f);
+            ui_accelResetDropdowns();
             fsaeAccel_reset();
             accel_button_status = BUTTON_START;
             break;
@@ -424,4 +458,8 @@ void fsaeAccel_init(void) {
 
     fsaeAccel_reset();
     set_accel_button_text(accel_button_status);
+
+    char last_results[256];
+    sdcard_get_last_accel_results(last_results, sizeof(last_results));
+    ui_accelSetLastTimes(last_results);
 }

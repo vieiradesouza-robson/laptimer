@@ -10,8 +10,9 @@ uint16_t skidCurrentIndex = 0;
 uint64_t last_timestamp = 0;
 uint64_t curr_timestamp = 0;
 bool interrupt_enabled = false;
+static bool skid_awaiting_first_trigger = true;
 
-skid_button_status_t skid_button_status = BUTTON_START;
+button_status_t skid_button_status = BUTTON_START;
 
 void enableInterrupt(){
     if(!interrupt_enabled){
@@ -51,11 +52,23 @@ static void skid_interrupt_task(void* arg) {
     uint64_t diff_us = 0;
     float diff_s = 0.0f;
 
-    while (1) {        
+    enableInterrupt();
+
+    while (1) {
         newLap = xQueueReceive(interrupt_queue, &curr_timestamp, pdMS_TO_TICKS(50));
 
         if (!newLap) {
             curr_timestamp = esp_timer_get_time();
+        }
+
+        if (skid_awaiting_first_trigger) {
+            if (newLap) {
+                // The first trigger only arms the clock; it does not close a lap
+                skid_awaiting_first_trigger = false;
+                last_timestamp = curr_timestamp;
+                enableInterrupt();
+            }
+            continue;
         }
 
         diff_us = curr_timestamp - last_timestamp;
@@ -66,14 +79,18 @@ static void skid_interrupt_task(void* arg) {
         last_timestamp = newLap ? curr_timestamp : last_timestamp;
         skidCurrentIndex = newLap ? (skidCurrentIndex + 1) % 4 : skidCurrentIndex;
 
+        if (!interrupt_enabled && diff_us >= INPUT_TIME_MIN_INT_US) {
+            enableInterrupt();
+        }
+
         if (skidCurrentIndex == 0 && newLap) {
             // Calculate average of 2nd and 4th laps
             float avg = (skidTimes[1] + skidTimes[3]) / 2.0f;
             ui_skidNewTime(avg, 4);
-        }
-
-        if (!interrupt_enabled && diff_us >= INPUT_TIME_MIN_INT_US) {
-            enableInterrupt();
+            skid_button_status = BUTTON_RESET;
+            set_button_text(skid_button_status);
+            disableInterrupt();
+            vTaskDelete(NULL);
         }
     }
 
@@ -94,19 +111,28 @@ void fsaeSkid_reset(void) {
     // Reset any internal state if necessary
     last_timestamp = 0;
     curr_timestamp = 0;
+    skid_awaiting_first_trigger = true;
+    disableInterrupt();
 }
 
 void fsaeSkid_button_pressed(void) {
     switch (skid_button_status) {
         case BUTTON_START:
+            xQueueReset(interrupt_queue); // clear interruption queue before starting a new run
             xTaskCreate(skid_interrupt_task, "skid_interrupt_task", 2048, NULL, 10, &skid_task_handle);
             skid_button_status = BUTTON_STOP;
             break;
         case BUTTON_STOP:
-            vTaskDelete(skid_task_handle);
+            // Kill the task and disable the interrupt only; keep whatever times are already displayed
+            if (skid_task_handle != NULL) {
+                vTaskDelete(skid_task_handle);
+                skid_task_handle = NULL;
+            }
+            disableInterrupt();
             skid_button_status = BUTTON_RESET;
             break;
         case BUTTON_RESET:
+            ui_skidClearTimes();
             fsaeSkid_reset();
             skid_button_status = BUTTON_START;
             break;
@@ -121,6 +147,8 @@ void fsaeSkid_init(void) {
     fsaeAccel_deinit();
     // fsaeSkid_deinit();
 
+    skid_button_status = BUTTON_START;
+
     interrupt_queue = xQueueCreate(10, sizeof(uint64_t));
     gpio_config_t io_conf = {
         .intr_type = GPIO_INTR_NEGEDGE,
@@ -131,12 +159,18 @@ void fsaeSkid_init(void) {
     };
     gpio_config(&io_conf);
 
+    // gpio_config() enables the interrupt for the pin it configures; force it back
+    // off here (and keep the software flag in sync) until Start is pressed
+    gpio_intr_disable(INPUT1_GPIO);
+    interrupt_enabled = false;
+
     // gpio_install_isr_service is idempotent-safe to call again; already-installed is ignored
     gpio_install_isr_service(0);
     gpio_isr_handler_add(INPUT1_GPIO, gpio_isr_handler, NULL);
 
     xTaskCreate(update_photogate_status_skid, "update_photogate_status_skid", 2048, NULL, 10, &status_checkbox_task_handle);
     fsaeSkid_reset();
+    set_button_text(skid_button_status);
 }
 
 void fsaeSkid_deinit(void) {
@@ -175,6 +209,8 @@ static uint64_t accel_input1_timestamp = 0;
 static bool accel_input1_intr_enabled = false;
 static bool accel_input2_intr_enabled = false;
 bool runOpen = false;
+
+button_status_t accel_button_status = BUTTON_START;
 
 static void enableAccelInput1Interrupt(void) {
     if (!accel_input1_intr_enabled) {
@@ -264,7 +300,13 @@ static void accel_task(void* arg) {
             runOpen = false;
 
             ui_accelNewTime(diff_s);
-            // enableAccelInput1Interrupt();
+
+            // Run complete: both gates are already disabled by the ISR, just
+            // update the button state and stop the task
+            accel_button_status = BUTTON_RESET;
+            set_accel_button_text(accel_button_status);
+            accel_task_handle = NULL;
+            vTaskDelete(NULL);
         }
     }
 
@@ -285,16 +327,43 @@ static void update_photogate_status_accel(void* arg){
 void fsaeAccel_reset(void) {
     accel_last_timestamp = 0;
     accel_input1_timestamp = 0;
+    runOpen = false;
 
     if (accel_queue != NULL) {
         xQueueReset(accel_queue);
     }
 
-    runOpen = false;
-    ui_accelNewTime(0.0f);
-
+    disableAccelInput1Interrupt();
     disableAccelInput2Interrupt();
-    enableAccelInput1Interrupt();
+}
+
+void fsaeAccel_button_pressed(void) {
+    switch (accel_button_status) {
+        case BUTTON_START:
+            xQueueReset(accel_queue); // clear interruption queue before starting a new run
+            enableAccelInput1Interrupt();
+            xTaskCreate(accel_task, "accel_task", 2048, NULL, 10, &accel_task_handle);
+            accel_button_status = BUTTON_STOP;
+            break;
+        case BUTTON_STOP:
+            // Kill the task and disable both interrupts only; keep whatever time is displayed
+            if (accel_task_handle != NULL) {
+                vTaskDelete(accel_task_handle);
+                accel_task_handle = NULL;
+            }
+            disableAccelInput1Interrupt();
+            disableAccelInput2Interrupt();
+            accel_button_status = BUTTON_RESET;
+            break;
+        case BUTTON_RESET:
+            ui_accelNewTime(0.0f);
+            fsaeAccel_reset();
+            accel_button_status = BUTTON_START;
+            break;
+        default:
+            break;
+    }
+    set_accel_button_text(accel_button_status);
 }
 
 void fsaeAccel_deinit(void) {
@@ -324,6 +393,8 @@ void fsaeAccel_init(void) {
     fsaeSkid_deinit();
     // fsaeAccel_deinit();
 
+    accel_button_status = BUTTON_START;
+
     accel_queue = xQueueCreate(10, sizeof(accel_event_t));
 
     gpio_config_t io_conf = {
@@ -335,12 +406,20 @@ void fsaeAccel_init(void) {
     };
     gpio_config(&io_conf);
 
-    // gpio_install_isr_service is already called once by fsaeSkid_init() at boot
+    // gpio_config() enables the interrupt for the pins it configures; force both
+    // back off here (and keep the software flags in sync) until Start is pressed
+    gpio_intr_disable(INPUT1_GPIO);
+    gpio_intr_disable(INPUT2_GPIO);
+    accel_input1_intr_enabled = false;
+    accel_input2_intr_enabled = false;
+
+    // gpio_install_isr_service is idempotent-safe to call again; already-installed is ignored
+    gpio_install_isr_service(0);
     gpio_isr_handler_add(INPUT1_GPIO, accel_gpio_isr_handler, (void*)(intptr_t)INPUT1_GPIO);
     gpio_isr_handler_add(INPUT2_GPIO, accel_gpio_isr_handler, (void*)(intptr_t)INPUT2_GPIO);
 
-    xTaskCreate(accel_task, "accel_task", 2048, NULL, 10, &accel_task_handle);
     xTaskCreate(update_photogate_status_accel, "update_photogate_status_accel", 2048, NULL, 10, &accel_status_checkbox_task_handle);
 
     fsaeAccel_reset();
+    set_accel_button_text(accel_button_status);
 }

@@ -6,6 +6,7 @@
 #include "../ui.h"
 #include <stdio.h>
 #include <stdbool.h>
+#include "../main/fsaeEvents.h"
 
 lv_obj_t * uic_accelTime;
 lv_obj_t * uic_accelReset;
@@ -48,6 +49,16 @@ void ui_accelNewTime(float timeSec)
 
     snprintf(buf, sizeof(buf), "%.3fs", timeSec);
     lv_label_set_text(ui_accelTime, buf);
+}
+
+void set_accel_button_text(uint8_t button_status) {
+    if (button_status == BUTTON_START) {
+        lv_label_set_text(ui_Label5, "Start");
+    } else if (button_status == BUTTON_STOP) {
+        lv_label_set_text(ui_Label5, "Stop");
+    } else if (button_status == BUTTON_RESET) {
+        lv_label_set_text(ui_Label5, "Reset");
+    }
 }
 
 void ui_accelPhotogateStatus(int photogate_state, int photogate_state2){
@@ -127,7 +138,7 @@ void ui_accelScreen_screen_init(void)
     lv_obj_set_x(ui_Label5, 0);
     lv_obj_set_y(ui_Label5, 150);
     lv_obj_set_align(ui_Label5, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_Label5, "Reset");
+    lv_label_set_text(ui_Label5, "Start");
     lv_obj_set_style_text_font(ui_Label5, &lv_font_montserrat_48, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Panel2 = lv_obj_create(ui_accelScreen);

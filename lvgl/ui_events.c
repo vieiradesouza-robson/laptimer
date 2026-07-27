@@ -8,7 +8,7 @@
 
 void accelResetClicked(lv_event_t * e)
 {
-	fsaeAccel_reset();
+	fsaeAccel_button_pressed();
 }
 
 void skidResetClicked(lv_event_t * e)

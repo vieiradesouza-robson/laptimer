@@ -50,6 +50,7 @@ extern lv_obj_t * uic_skidTimeIdx5;
 void ui_skidNewTime(float timeSec, uint16_t lapIdx);
 void ui_skidPhotogateStatus(int photogate_state);
 void set_button_text(uint8_t button_status);
+void ui_skidClearTimes(void);
 
 #ifdef __cplusplus
 } /*extern "C"*/

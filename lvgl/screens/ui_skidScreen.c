@@ -57,10 +57,14 @@ void ui_event_skidReset(lv_event_t * e)
     lv_event_code_t event_code = lv_event_get_code(e);
 
     if(event_code == LV_EVENT_CLICKED) {
-        for(int i = 0; i < 5; i++) {
-            lv_label_set_text(*skidTimeLabels[i], "0.000s");
-        }
         skidResetClicked(e);
+    }
+}
+
+void ui_skidClearTimes(void)
+{
+    for(int i = 0; i < 5; i++) {
+        lv_label_set_text(*skidTimeLabels[i], "0.000s");
     }
 }
 

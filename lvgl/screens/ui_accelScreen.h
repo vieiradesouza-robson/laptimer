@@ -36,5 +36,7 @@ extern lv_obj_t * uic_accelTime;
 } /*extern "C"*/
 #endif
 
+void ui_accelNewTime(float timeSec);
+
 #endif
 

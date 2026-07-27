@@ -12,6 +12,8 @@ extern "C" {
 
 void accelResetClicked(lv_event_t * e);
 void skidResetClicked(lv_event_t * e);
+void accelScreenLoaded(void);
+void skidScreenLoaded(void);
 
 #ifdef __cplusplus
 } /*extern "C"*/

@@ -8,5 +8,4 @@ void app_main(void) {
         lvgl_port_unlock();
     }
 
-    fsaeSkid_init();
 }

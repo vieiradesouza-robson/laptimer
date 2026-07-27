@@ -38,9 +38,7 @@ lv_obj_t * ui_skidTimeIdx3 = NULL;
 lv_obj_t * ui_skidTimeIdx4 = NULL;
 lv_obj_t * ui_skidTimeIdx5 = NULL;
 
-float skidTimes[5] = {0.0, 0.0, 0.0, 0.0, 0.0};
-int skidCurrentIndex = 0;
-lv_obj_t **skidTimeLabels[5] = {NULL, &ui_skidTime1, &ui_skidTime2, &ui_skidTime3, &ui_skidTime4};
+lv_obj_t **skidTimeLabels[5] = {&ui_skidTime1, &ui_skidTime2, &ui_skidTime3, &ui_skidTime4, &ui_skidAvg24};
 
 // event funtions
 void ui_event_home3(lv_event_t * e)
@@ -48,7 +46,7 @@ void ui_event_home3(lv_event_t * e)
     lv_event_code_t event_code = lv_event_get_code(e);
 
     if(event_code == LV_EVENT_CLICKED) {
-        ui_skidScreen_screen_destroy();
+        // ui_skidScreen_screen_destroy();
         _ui_screen_change(&ui_mainScreen, LV_SCR_LOAD_ANIM_NONE, 500, 0, &ui_mainScreen_screen_init);
     }
 }
@@ -58,38 +56,18 @@ void ui_event_skidReset(lv_event_t * e)
     lv_event_code_t event_code = lv_event_get_code(e);
 
     if(event_code == LV_EVENT_CLICKED) {
-        for(int i = 1; i < 5; i++) {
-            skidTimes[i] = 0.0f;
+        for(int i = 0; i < 5; i++) {
             lv_label_set_text(*skidTimeLabels[i], "0.000s");
         }
-        lv_label_set_text(ui_skidAvg24, "0.000s");
-        skidCurrentIndex = 0;
         skidResetClicked(e);
     }
 }
 
-void ui_skidNewTime(float timeSec, bool newLap)
+void ui_skidNewTime(float timeSec, uint16_t lapIdx)
 {
-    skidTimes[skidCurrentIndex] = timeSec;
-
     char buf[7];
-
-    if (skidCurrentIndex != 0) {
-        // Update individual lap time labels
-        snprintf(buf, sizeof(buf), "%.3fs", skidTimes[skidCurrentIndex]);
-        lv_label_set_text(*skidTimeLabels[skidCurrentIndex], buf);
-    }
-
-    if (skidCurrentIndex == 4 && newLap) {
-        // Calculate and update average of laps 2 and 4
-        float avg24 = (skidTimes[2] + skidTimes[4]) / 2.0f;
-        snprintf(buf, sizeof(buf), "%.3fs", avg24);
-        lv_label_set_text(ui_skidAvg24, buf);
-    }
-
-    if (newLap) {
-        skidCurrentIndex = (skidCurrentIndex + 1) % 5;
-    }
+    snprintf(buf, sizeof(buf), "%.3fs", timeSec);
+    lv_label_set_text(*skidTimeLabels[lapIdx], buf);
 }
 
 // build funtions

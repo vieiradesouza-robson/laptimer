@@ -19,8 +19,9 @@ void ui_event_accelmain(lv_event_t * e)
     lv_event_code_t event_code = lv_event_get_code(e);
 
     if(event_code == LV_EVENT_CLICKED) {
-        ui_mainScreen_screen_destroy();
+        // ui_mainScreen_screen_destroy();
         _ui_screen_change(&ui_accelScreen, LV_SCR_LOAD_ANIM_NONE, 500, 0, &ui_accelScreen_screen_init);
+        accelScreenLoaded();
     }
 }
 
@@ -29,8 +30,9 @@ void ui_event_skidmain(lv_event_t * e)
     lv_event_code_t event_code = lv_event_get_code(e);
 
     if(event_code == LV_EVENT_CLICKED) {
-        ui_mainScreen_screen_destroy();
+        // ui_mainScreen_screen_destroy();
         _ui_screen_change(&ui_skidScreen, LV_SCR_LOAD_ANIM_NONE, 500, 0, &ui_skidScreen_screen_init);
+        skidScreenLoaded();
     }
 }
 

@@ -4,6 +4,8 @@
 // Project name: fsae-laptimer.spjj
 
 #include "../ui.h"
+#include <stdio.h>
+#include <stdbool.h>
 
 lv_obj_t * uic_accelTime;
 lv_obj_t * uic_accelReset;
@@ -26,7 +28,7 @@ void ui_event_home2(lv_event_t * e)
     lv_event_code_t event_code = lv_event_get_code(e);
 
     if(event_code == LV_EVENT_CLICKED) {
-        ui_accelScreen_screen_destroy();
+        // ui_accelScreen_screen_destroy();
         _ui_screen_change(&ui_mainScreen, LV_SCR_LOAD_ANIM_NONE, 500, 0, &ui_mainScreen_screen_init);
     }
 }
@@ -38,6 +40,14 @@ void ui_event_accelReset(lv_event_t * e)
     if(event_code == LV_EVENT_CLICKED) {
         accelResetClicked(e);
     }
+}
+
+void ui_accelNewTime(float timeSec)
+{
+    char buf[7];
+
+    snprintf(buf, sizeof(buf), "%.3fs", timeSec);
+    lv_label_set_text(ui_accelTime, buf);
 }
 
 // build funtions
@@ -122,7 +132,7 @@ void ui_accelScreen_screen_init(void)
     lv_obj_set_x(ui_accelTime, 0);
     lv_obj_set_y(ui_accelTime, -40);
     lv_obj_set_align(ui_accelTime, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_accelTime, "3.710s");
+    lv_label_set_text(ui_accelTime, "0.000s");
     lv_obj_set_style_text_color(ui_accelTime, lv_color_hex(0xFFD900), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(ui_accelTime, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_accelTime, &lv_font_montserrat_48, LV_PART_MAIN | LV_STATE_DEFAULT);

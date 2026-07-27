@@ -47,7 +47,7 @@ extern lv_obj_t * uic_skidTimeIdx3;
 extern lv_obj_t * uic_skidTimeIdx4;
 extern lv_obj_t * uic_skidTimeIdx5;
 
-void ui_skidNewTime(float timeSec, bool newLap);
+void ui_skidNewTime(float timeSec, uint16_t lapIdx);
 
 #ifdef __cplusplus
 } /*extern "C"*/

@@ -8,11 +8,21 @@
 
 void accelResetClicked(lv_event_t * e)
 {
-	// Your code here
+	fsaeAccel_reset();
 }
 
 void skidResetClicked(lv_event_t * e)
 {
 	fsaeSkid_reset();
 	// Your code here
+}
+
+void accelScreenLoaded(void)
+{
+	fsaeAccel_init();
+}
+
+void skidScreenLoaded(void)
+{
+	fsaeSkid_init();
 }

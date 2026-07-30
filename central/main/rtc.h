@@ -13,5 +13,6 @@ typedef struct {
 } rtc_datetime_t;
 
 rtc_datetime_t rtc_get_timestamp(void);
+void rtc_set_time(const rtc_datetime_t *dt);
 
 #endif //INC_RTC_H

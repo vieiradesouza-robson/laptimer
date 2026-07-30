@@ -17,6 +17,10 @@ static uint8_t bcd_to_dec(uint8_t bcd) {
     return ((bcd >> 4) * 10) + (bcd & 0x0F);
 }
 
+static uint8_t dec_to_bcd(uint8_t dec) {
+    return (uint8_t)(((dec / 10) << 4) | (dec % 10));
+}
+
 rtc_datetime_t rtc_get_timestamp(void) {
     rtc_datetime_t dt = {0};
 
@@ -46,4 +50,26 @@ rtc_datetime_t rtc_get_timestamp(void) {
              dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second);
 
     return dt;
+}
+
+void rtc_set_time(const rtc_datetime_t *dt) {
+    uint8_t raw[8];
+    raw[0] = DS1307_REG_SECONDS;
+    raw[1] = dec_to_bcd(dt->second); // bit 7 (clock-halt) left cleared, so the oscillator runs
+    raw[2] = dec_to_bcd(dt->minute);
+    raw[3] = dec_to_bcd(dt->hour);   // 24-hour mode (bit 6 left cleared)
+    raw[4] = 1;                       // day-of-week register; unused elsewhere, any valid 1-7 works
+    raw[5] = dec_to_bcd(dt->day);
+    raw[6] = dec_to_bcd(dt->month);
+    raw[7] = dec_to_bcd((uint8_t)(dt->year - 2000));
+
+    esp_err_t err = i2c_master_write_to_device(I2C_NUM_0, DS1307_I2C_ADDR, raw, sizeof(raw),
+                                                pdMS_TO_TICKS(DS1307_I2C_TIMEOUT_MS));
+    if (err != ESP_OK) {
+        ESP_LOGE(RTC_TAG, "Failed to write DS1307 at 0x%02X on I2C_NUM_0: %s", DS1307_I2C_ADDR, esp_err_to_name(err));
+        return;
+    }
+
+    ESP_LOGI(RTC_TAG, "RTC time set to %04u-%02u-%02u %02u:%02u:%02u",
+             dt->year, dt->month, dt->day, dt->hour, dt->minute, dt->second);
 }

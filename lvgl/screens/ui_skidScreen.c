@@ -43,6 +43,7 @@ lv_obj_t * ui_skidTimeIdx5 = NULL;
 lv_obj_t * ui_LastTimesSkid = NULL;
 lv_obj_t * ui_dropdownEquipeSkid = NULL;
 lv_obj_t * ui_dropdownPilotoSkid = NULL;
+lv_obj_t * ui_skidTimestamp = NULL;
 
 lv_obj_t **skidTimeLabels[5] = {&ui_skidTime1, &ui_skidTime2, &ui_skidTime3, &ui_skidTime4, &ui_skidAvg24};
 
@@ -52,7 +53,7 @@ void ui_event_home3(lv_event_t * e)
     lv_event_code_t event_code = lv_event_get_code(e);
 
     if(event_code == LV_EVENT_CLICKED) {
-        _ui_screen_change(&ui_mainScreen, LV_SCR_LOAD_ANIM_NONE, 500, 0, &ui_mainScreen_screen_init);
+        _ui_screen_change(&ui_mainScreen, LV_SCR_LOAD_ANIM_FADE_ON, 500, 0, &ui_mainScreen_screen_init);
     }
 }
 
@@ -129,6 +130,10 @@ void ui_skidSetLastTimes(const char *text) {
     lv_textarea_set_text(ui_LastTimesSkid, text);
 }
 
+void ui_skidSetTimestamp(const char *text) {
+    lv_label_set_text(ui_skidTimestamp, text);
+}
+
 
 // build funtions
 
@@ -163,7 +168,7 @@ void ui_skidScreen_screen_init(void)
     lv_obj_set_style_bg_opa(ui_Panel3, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_skidPhotoGateStatus = lv_checkbox_create(ui_skidScreen);
-    lv_checkbox_set_text(ui_skidPhotoGateStatus, "Photogate pronto");
+    lv_checkbox_set_text(ui_skidPhotoGateStatus, "Photogate ready");
     lv_obj_set_width(ui_skidPhotoGateStatus, LV_SIZE_CONTENT);   /// 1
     lv_obj_set_height(ui_skidPhotoGateStatus, LV_SIZE_CONTENT);    /// 1
     lv_obj_set_x(ui_skidPhotoGateStatus, 297);
@@ -184,7 +189,7 @@ void ui_skidScreen_screen_init(void)
     lv_obj_set_x(ui_Label6, 0);
     lv_obj_set_y(ui_Label6, 182);
     lv_obj_set_align(ui_Label6, LV_ALIGN_CENTER);
-    lv_label_set_text(ui_Label6, "Iniciar");
+    lv_label_set_text(ui_Label6, "Reset");
     lv_obj_set_style_text_font(ui_Label6, &lv_font_montserrat_48, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_Panel4 = lv_obj_create(ui_skidScreen);
@@ -313,7 +318,7 @@ void ui_skidScreen_screen_init(void)
     lv_obj_set_x(ui_LastTimesSkid, 152);
     lv_obj_set_y(ui_LastTimesSkid, -27);
     lv_obj_set_align(ui_LastTimesSkid, LV_ALIGN_CENTER);
-    lv_textarea_set_placeholder_text(ui_LastTimesSkid, "Placeholder...");
+    lv_textarea_set_placeholder_text(ui_LastTimesSkid, "Last times");
     lv_obj_set_style_text_font(ui_LastTimesSkid, &lv_font_montserrat_42, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_dropdownEquipeSkid = lv_dropdown_create(ui_skidScreen);
@@ -335,6 +340,15 @@ void ui_skidScreen_screen_init(void)
     lv_obj_set_y(ui_dropdownPilotoSkid, -210);
     lv_obj_set_align(ui_dropdownPilotoSkid, LV_ALIGN_CENTER);
     lv_obj_add_flag(ui_dropdownPilotoSkid, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
+
+    ui_skidTimestamp = lv_label_create(ui_skidScreen);
+    lv_obj_set_width(ui_skidTimestamp, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_skidTimestamp, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_skidTimestamp, 250);
+    lv_obj_set_y(ui_skidTimestamp, 185);
+    lv_obj_set_align(ui_skidTimestamp, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_skidTimestamp, "00:00:00");
+    lv_obj_set_style_text_font(ui_skidTimestamp, &lv_font_montserrat_48, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     lv_obj_add_event_cb(ui_home3, ui_event_home3, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_skidReset, ui_event_skidReset, LV_EVENT_ALL, NULL);
@@ -391,5 +405,6 @@ void ui_skidScreen_screen_destroy(void)
     ui_LastTimesSkid = NULL;
     ui_dropdownEquipeSkid = NULL;
     ui_dropdownPilotoSkid = NULL;
+    ui_skidTimestamp = NULL;
 
 }

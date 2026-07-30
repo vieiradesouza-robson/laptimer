@@ -28,6 +28,7 @@ lv_obj_t * ui_accelTime = NULL;
 lv_obj_t * ui_lastTimesAccel = NULL;
 lv_obj_t * ui_dropdownEquipeAccel = NULL;
 lv_obj_t * ui_dropdownPilotoAccel = NULL;
+lv_obj_t * ui_accelTimestamp = NULL;
 // event funtions
 void ui_event_home2(lv_event_t * e)
 {
@@ -95,6 +96,10 @@ void ui_accelResetDropdowns(void) {
 
 void ui_accelSetLastTimes(const char *text) {
     lv_textarea_set_text(ui_lastTimesAccel, text);
+}
+
+void ui_accelSetTimestamp(const char *text) {
+    lv_label_set_text(ui_accelTimestamp, text);
 }
 
 void ui_accelPhotogateStatus(int photogate_state, int photogate_state2){
@@ -204,7 +209,7 @@ void ui_accelScreen_screen_init(void)
     lv_obj_set_x(ui_lastTimesAccel, 171);
     lv_obj_set_y(ui_lastTimesAccel, -8);
     lv_obj_set_align(ui_lastTimesAccel, LV_ALIGN_CENTER);
-    lv_textarea_set_placeholder_text(ui_lastTimesAccel, "Placeholder...");
+    lv_textarea_set_placeholder_text(ui_lastTimesAccel, "Last times");
     lv_obj_set_style_text_font(ui_lastTimesAccel, &lv_font_montserrat_42, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     ui_dropdownEquipeAccel = lv_dropdown_create(ui_accelScreen);
@@ -226,6 +231,15 @@ void ui_accelScreen_screen_init(void)
     lv_obj_set_y(ui_dropdownPilotoAccel, -164);
     lv_obj_set_align(ui_dropdownPilotoAccel, LV_ALIGN_CENTER);
     lv_obj_add_flag(ui_dropdownPilotoAccel, LV_OBJ_FLAG_SCROLL_ON_FOCUS);     /// Flags
+
+    ui_accelTimestamp = lv_label_create(ui_accelScreen);
+    lv_obj_set_width(ui_accelTimestamp, LV_SIZE_CONTENT);   /// 1
+    lv_obj_set_height(ui_accelTimestamp, LV_SIZE_CONTENT);    /// 1
+    lv_obj_set_x(ui_accelTimestamp, 250);
+    lv_obj_set_y(ui_accelTimestamp, 180);
+    lv_obj_set_align(ui_accelTimestamp, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_accelTimestamp, "00:00:00");
+    lv_obj_set_style_text_font(ui_accelTimestamp, &lv_font_montserrat_48, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     lv_obj_add_event_cb(ui_home2, ui_event_home2, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_accelReset, ui_event_accelReset, LV_EVENT_ALL, NULL);
@@ -260,5 +274,6 @@ void ui_accelScreen_screen_destroy(void)
     ui_lastTimesAccel = NULL;
     ui_dropdownEquipeAccel = NULL;
     ui_dropdownPilotoAccel = NULL;
+    ui_accelTimestamp = NULL;
 
 }

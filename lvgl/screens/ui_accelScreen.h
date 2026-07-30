@@ -28,6 +28,7 @@ extern lv_obj_t * ui_accelTime;
 extern lv_obj_t * ui_lastTimesAccel;
 extern lv_obj_t * ui_dropdownEquipeAccel;
 extern lv_obj_t * ui_dropdownPilotoAccel;
+extern lv_obj_t * ui_accelTimestamp;
 // CUSTOM VARIABLES
 extern lv_obj_t * uic_accelScreen;
 extern lv_obj_t * uic_accelPhotoGate1Status;
@@ -46,6 +47,8 @@ bool ui_accelSelectionValid(void);
 void ui_accelGetSelection(char *team_out, size_t team_out_len, int *driver_out);
 void ui_accelResetDropdowns(void);
 void ui_accelSetLastTimes(const char *text);
+void ui_accelSetTimestamp(const char *text);
+
 
 #endif
 

@@ -3,6 +3,7 @@
 static QueueHandle_t interrupt_queue = NULL;
 static TaskHandle_t skid_task_handle = NULL;
 static TaskHandle_t status_checkbox_task_handle = NULL;
+static TaskHandle_t skid_timestamp_task_handle = NULL;
 
 float skidTimes[4] = {0.0, 0.0, 0.0, 0.0};
 uint16_t skidCurrentIndex = 0;
@@ -115,6 +116,16 @@ static void update_photogate_status_skid(void* arg){
     }
 }
 
+static void update_timestamp_skid(void* arg) {
+    char buf[16]; // wider than "hh:mm:ss\0" needs, so -Wformat-truncation can't fire on the uint8_t worst case
+    while (1) {
+        rtc_datetime_t now = rtc_get_timestamp();
+        snprintf(buf, sizeof(buf), "%02u:%02u:%02u", now.hour, now.minute, now.second);
+        ui_skidSetTimestamp(buf);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+}
+
 void fsaeSkid_reset(void) {
     skidCurrentIndex = 0;
     // Reset any internal state if necessary
@@ -185,6 +196,7 @@ void fsaeSkid_init(void) {
     gpio_isr_handler_add(INPUT1_GPIO, gpio_isr_handler, NULL);
 
     xTaskCreate(update_photogate_status_skid, "update_photogate_status_skid", 2048, NULL, 10, &status_checkbox_task_handle);
+    xTaskCreate(update_timestamp_skid, "update_timestamp_skid", 4096, NULL, 10, &skid_timestamp_task_handle);
     fsaeSkid_reset();
     set_button_text(skid_button_status);
 
@@ -207,6 +219,11 @@ void fsaeSkid_deinit(void) {
         status_checkbox_task_handle = NULL;
     }
 
+    if (skid_timestamp_task_handle != NULL) {
+        vTaskDelete(skid_timestamp_task_handle);
+        skid_timestamp_task_handle = NULL;
+    }
+
     if (interrupt_queue != NULL) {
         vQueueDelete(interrupt_queue);
         interrupt_queue = NULL;
@@ -223,6 +240,7 @@ typedef struct {
 static QueueHandle_t accel_queue = NULL;
 static TaskHandle_t accel_task_handle = NULL;
 static TaskHandle_t accel_status_checkbox_task_handle = NULL;
+static TaskHandle_t accel_timestamp_task_handle = NULL;
 
 static uint64_t accel_last_timestamp = 0;
 static uint64_t accel_input1_timestamp = 0;
@@ -353,6 +371,16 @@ static void update_photogate_status_accel(void* arg){
     }
 }
 
+static void update_timestamp_accel(void* arg) {
+    char buf[16]; // wider than "hh:mm:ss\0" needs, so -Wformat-truncation can't fire on the uint8_t worst case
+    while (1) {
+        rtc_datetime_t now = rtc_get_timestamp();
+        snprintf(buf, sizeof(buf), "%02u:%02u:%02u", now.hour, now.minute, now.second);
+        ui_accelSetTimestamp(buf);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+}
+
 void fsaeAccel_reset(void) {
     accel_last_timestamp = 0;
     accel_input1_timestamp = 0;
@@ -418,6 +446,11 @@ void fsaeAccel_deinit(void) {
         accel_status_checkbox_task_handle = NULL;
     }
 
+    if (accel_timestamp_task_handle != NULL) {
+        vTaskDelete(accel_timestamp_task_handle);
+        accel_timestamp_task_handle = NULL;
+    }
+
     if (accel_queue != NULL) {
         vQueueDelete(accel_queue);
         accel_queue = NULL;
@@ -455,6 +488,7 @@ void fsaeAccel_init(void) {
     gpio_isr_handler_add(INPUT2_GPIO, accel_gpio_isr_handler, (void*)(intptr_t)INPUT2_GPIO);
 
     xTaskCreate(update_photogate_status_accel, "update_photogate_status_accel", 2048, NULL, 10, &accel_status_checkbox_task_handle);
+    xTaskCreate(update_timestamp_accel, "update_timestamp_accel", 4096, NULL, 10, &accel_timestamp_task_handle);
 
     fsaeAccel_reset();
     set_accel_button_text(accel_button_status);
